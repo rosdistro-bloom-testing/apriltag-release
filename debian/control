@@ -1,0 +1,12 @@
+Source: ros-dashing-apriltag
+Section: misc
+Priority: extra
+Maintainer: Max Krogius <mkrogius@umich.edu>
+Build-Depends: debhelper (>= 9.0.0), cmake, ros-dashing-ros-workspace
+Homepage: https://april.eecs.umich.edu/software/apriltag.html
+Standards-Version: 3.9.2
+
+Package: ros-dashing-apriltag
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-dashing-ros-workspace
+Description: AprilTag detector library
