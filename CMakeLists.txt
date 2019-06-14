@@ -7,6 +7,8 @@ include_directories(.)
 aux_source_directory(common COMMON_SRC)
 aux_source_directory(. APRILTAG_SRCS)
 
+set(CMAKE_BUILD_TYPE Release)
+
 # Library
 add_library(${PROJECT_NAME} SHARED ${APRILTAG_SRCS} ${COMMON_SRC})
 if (MSVC)
@@ -31,6 +33,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_INSTALL_LIBDIR}
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_INSTALL_LIBDIR}
 )
+
+file(GLOB TAG_FILES ${CMAKE_SOURCE_DIR}/tag*.c)
+set_source_files_properties(SOURCE ${TAG_FILES} PROPERTIES COMPILE_FLAGS -O0)
 
 # install library
 install(TARGETS ${PROJECT_NAME} EXPORT apriltag
