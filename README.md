@@ -1,3 +1,26 @@
+## apriltag (foxy) - 3.1.2-2
+
+The packages in the `apriltag` repository were released into the `foxy` distro by running `/home/wxm/.local/bin/bloom-release -r foxy apriltag` on `Mon, 15 Jun 2020 15:56:14 -0000`
+
+The `apriltag` package was released.
+
+Version of package(s) in repository `apriltag`:
+
+- upstream repository: https://github.com/AprilRobotics/apriltag.git
+- release repository: https://github.com/AprilRobotics/apriltag-release.git
+- rosdistro version: `3.1.2-1`
+- old version: `3.1.2-1`
+- new version: `3.1.2-2`
+
+Versions of tools used:
+
+- bloom version: `0.9.7`
+- catkin_pkg version: `0.4.20`
+- rosdep version: `0.19.0`
+- rosdistro version: `0.8.2`
+- vcstools version: `0.1.42`
+
+
 ## apriltag (noetic) - 3.1.2-2
 
 The packages in the `apriltag` repository were released into the `noetic` distro by running `/home/wxm/.local/bin/bloom-release -r noetic apriltag` on `Mon, 15 Jun 2020 15:51:06 -0000`
