@@ -1,1 +1,1 @@
-{"trim": "", "base": "3101aa0", "trimbase": "", "parent": "debian/foxy/apriltag", "previous": "7171bdd"}
+{"base": "b04e756", "parent": "debian/rolling/apriltag", "previous": "40a3f89", "trim": "", "trimbase": ""}
