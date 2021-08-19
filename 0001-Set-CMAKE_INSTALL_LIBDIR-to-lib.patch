@@ -1,4 +1,4 @@
-From 9d33eb195ba9af011972792a76468f494b631d25 Mon Sep 17 00:00:00 2001
+From 181fe5b201a46721505221c75bcceba844147eaf Mon Sep 17 00:00:00 2001
 From: Wolfgang Merkt <w.merkt@gmail.com>
 Date: Mon, 15 Jun 2020 16:54:56 +0100
 Subject: [PATCH] Set CMAKE_INSTALL_LIBDIR to lib
@@ -20,5 +20,5 @@ index c733c6c..8eafbfa 100644
  # Library
  file(GLOB TAG_FILES ${CMAKE_SOURCE_DIR}/tag*.c)
 -- 
-2.30.2
+2.25.1
 
