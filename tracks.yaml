@@ -67,8 +67,8 @@ tracks:
     name: upstream
     patches: null
     release_inc: '4'
-    release_repo_url: git@github.com:aprilrobotics/apriltag-release.git
-    release_tag: :{version}
+    release_repo_url: git@github.com:ros2-gbp/apriltag-release.git
+    release_tag: v:{version}
     ros_distro: galactic
     vcs_type: git
     vcs_uri: https://github.com/AprilRobotics/apriltag.git
