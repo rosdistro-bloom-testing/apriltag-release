@@ -1,7 +1,30 @@
 cmake_minimum_required(VERSION 3.1)
-project(apriltag VERSION 3.1.0 LANGUAGES C CXX)
+project(apriltag VERSION 3.2.0 LANGUAGES C CXX)
 
+if(POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
+endif()
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(ASAN "Use AddressSanitizer for debug builds to detect memory issues" OFF)
+
+if (ASAN)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \
+        -fsanitize=address \
+        -fsanitize=bool \
+        -fsanitize=bounds \
+        -fsanitize=enum \
+        -fsanitize=float-cast-overflow \
+        -fsanitize=float-divide-by-zero \
+        -fsanitize=nonnull-attribute \
+        -fsanitize=returns-nonnull-attribute \
+        -fsanitize=signed-integer-overflow \
+        -fsanitize=undefined \
+        -fsanitize=vla-bound \
+        -fno-sanitize=alignment \
+        -fsanitize=leak \
+        -fsanitize=object-size \
+    ")
+endif()
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
@@ -15,14 +38,13 @@ endif()
 
 set(CMAKE_INSTALL_LIBDIR "lib") # lib prefix workaround for multi-arch
 
-find_package(OpenCV QUIET)
-
 aux_source_directory(common COMMON_SRC)
 set(APRILTAG_SRCS apriltag.c apriltag_pose.c apriltag_quad_thresh.c)
 
 # Library
 file(GLOB TAG_FILES ${PROJECT_SOURCE_DIR}/tag*.c)
-add_library(${PROJECT_NAME} SHARED ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
+add_library(${PROJECT_NAME} ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
+
 if (MSVC)
     # FindThreads will not find pthread.h with MSVC
     # winmm is necessary for __imp_timeGetTime
@@ -102,7 +124,8 @@ install(FILES "${PROJECT_BINARY_DIR}/apriltag.pc" DESTINATION "${CMAKE_INSTALL_L
 
 
 # Python wrapper
-option(BUILD_PYTHON_WRAPPER "Builds Python wrapper" On)
+include(CMakeDependentOption)
+cmake_dependent_option(BUILD_PYTHON_WRAPPER "Builds Python wrapper" ON BUILD_SHARED_LIBS OFF)
 
 if(BUILD_PYTHON_WRAPPER)
     SET(Python_ADDITIONAL_VERSIONS 3)
@@ -146,11 +169,14 @@ add_executable(apriltag_demo example/apriltag_demo.c)
 target_link_libraries(apriltag_demo apriltag)
 
 # opencv_demo
+find_package(OpenCV COMPONENTS core imgproc videoio highgui QUIET)
 if(OpenCV_FOUND)
     add_executable(opencv_demo example/opencv_demo.cc)
     target_link_libraries(opencv_demo apriltag ${OpenCV_LIBRARIES})
     set_target_properties(opencv_demo PROPERTIES CXX_STANDARD 11)
     install(TARGETS opencv_demo RUNTIME DESTINATION bin)
+else()
+    message(WARNING "OpenCV not found: Not building demo")
 endif(OpenCV_FOUND)
 
 # install example programs
