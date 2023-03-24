@@ -36,6 +36,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS  "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+set(CMAKE_INSTALL_LIBDIR "lib") # lib prefix workaround for multi-arch
+
 aux_source_directory(common COMMON_SRC)
 set(APRILTAG_SRCS apriltag.c apriltag_pose.c apriltag_quad_thresh.c)
 
