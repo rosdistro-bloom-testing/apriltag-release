@@ -1,0 +1,12 @@
+Source: ros-iron-apriltag
+Section: misc
+Priority: optional
+Maintainer: Max Krogius <mkrogius@umich.edu>
+Build-Depends: debhelper (>= 9.0.0), cmake, libopencv-dev <!nocheck>, python3-numpy, ros-iron-ros-workspace
+Homepage: https://april.eecs.umich.edu/software/apriltag.html
+Standards-Version: 3.9.2
+
+Package: ros-iron-apriltag
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ros-iron-ros-workspace
+Description: AprilTag detector library
