@@ -1,0 +1,25 @@
+From ec2ac7e54d02720172b36555be57b2ed1707e6c9 Mon Sep 17 00:00:00 2001
+From: Wolfgang Merkt <w.merkt@gmail.com>
+Date: Mon, 15 Jun 2020 16:54:56 +0100
+Subject: [PATCH] Set CMAKE_INSTALL_LIBDIR to lib
+
+---
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 72c3ad6d7b1d..cf57352fa4f0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -36,6 +36,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS  "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+ endif()
+ 
++set(CMAKE_INSTALL_LIBDIR "lib") # lib prefix workaround for multi-arch
++
+ aux_source_directory(common COMMON_SRC)
+ set(APRILTAG_SRCS apriltag.c apriltag_pose.c apriltag_quad_thresh.c)
+ 
+-- 
+2.44.0
+
