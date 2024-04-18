@@ -24,14 +24,14 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the Regents of The University of Michigan.
 */
-#include <errno.h>
 
-#define _GNU_SOURCE  // Possible fix for 16.04
 #define __USE_GNU
-#include "common/pthreads_cross.h"
+#include <pthread.h>
+#include <sched.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -39,7 +39,9 @@ either expressed or implied, of the Regents of The University of Michigan.
 #endif
 
 #include "workerpool.h"
-#include "debug_print.h"
+#include "timeprofile.h"
+#include "math_util.h"
+#include "string_util.h"
 
 struct workerpool {
     int nthreads;
@@ -66,19 +68,26 @@ void *worker_thread(void *p)
 {
     workerpool_t *wp = (workerpool_t*) p;
 
+    int cnt = 0;
+
     while (1) {
         struct task *task;
 
         pthread_mutex_lock(&wp->mutex);
         while (wp->taskspos == zarray_size(wp->tasks)) {
             wp->end_count++;
+//          printf("%"PRId64" thread %d did %d\n", utime_now(), pthread_self(), cnt);
             pthread_cond_broadcast(&wp->endcond);
             pthread_cond_wait(&wp->startcond, &wp->mutex);
+            cnt = 0;
+//            printf("%"PRId64" thread %d awake\n", utime_now(), pthread_self());
         }
 
         zarray_get_volatile(wp->tasks, wp->taskspos, &task);
         wp->taskspos++;
+        cnt++;
         pthread_mutex_unlock(&wp->mutex);
+//        pthread_yield();
         sched_yield();
 
         // we've been asked to exit.
@@ -109,9 +118,8 @@ workerpool_t *workerpool_create(int nthreads)
         for (int i = 0; i < nthreads; i++) {
             int res = pthread_create(&wp->threads[i], NULL, worker_thread, wp);
             if (res != 0) {
-                debug_print("Insufficient system resources to create workerpool threads\n");
-                // errno already set to EAGAIN by pthread_create() failure
-                return NULL;
+                perror("pthread_create");
+                exit(-1);
             }
         }
     }

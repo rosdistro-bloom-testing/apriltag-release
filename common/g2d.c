@@ -33,6 +33,13 @@ either expressed or implied, of the Regents of The University of Michigan.
 #include "g2d.h"
 #include "common/math_util.h"
 
+#ifdef _WIN32
+static inline long int random(void)
+{
+        return rand();
+}
+#endif
+
 double g2d_distance(const double a[2], const double b[2])
 {
     return sqrtf(sq(a[0]-b[0]) + sq(a[1]-b[1]));
@@ -120,7 +127,7 @@ int g2d_polygon_contains_point_ref(const zarray_t *poly, double q[2])
 
     double acc_theta = 0;
 
-    double last_theta = 0;
+    double last_theta;
 
     for (int i = 0; i <= psz; i++) {
         double p[2];
@@ -396,12 +403,10 @@ int g2d_polygon_contains_point(const zarray_t *poly, double q[2])
 
     int v = (quad_acc >= 2) || (quad_acc <= -2);
 
-    #if 0
-    if (v != g2d_polygon_contains_point_ref(poly, q)) {
+    if (0 && v != g2d_polygon_contains_point_ref(poly, q)) {
         printf("FAILURE %d %d\n", v, quad_acc);
         exit(-1);
     }
-    #endif
 
     return v;
 }
@@ -717,13 +722,6 @@ int g2d_polygon_rasterize(const zarray_t *poly, double y, double *x)
   (0,0)------------------(4,0)
 */
 #if 0
-
-#ifdef _WIN32
-static inline long int random(void)
-{
-        return rand();
-}
-#endif
 
 #include "timeprofile.h"
 
