@@ -1,15 +1,14 @@
-cmake_minimum_required(VERSION 3.16)
-project(apriltag VERSION 3.4.0 LANGUAGES C)
+cmake_minimum_required(VERSION 3.1)
+project(apriltag VERSION 3.2.0 LANGUAGES C CXX)
 
 if(POLICY CMP0077)
     cmake_policy(SET CMP0077 NEW)
 endif()
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-option(BUILD_EXAMPLES "Build example executables" ON)
 option(ASAN "Use AddressSanitizer for debug builds to detect memory issues" OFF)
 
 if (ASAN)
-    set(ASAN_FLAGS "\
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} \
         -fsanitize=address \
         -fsanitize=bool \
         -fsanitize=bounds \
@@ -25,14 +24,10 @@ if (ASAN)
         -fsanitize=leak \
         -fsanitize=object-size \
     ")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ASAN_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ASAN_FLAGS}")
 endif()
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
-
-SET(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
@@ -41,47 +36,25 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS  "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-Wall -Wextra -Werror)
-    # add_compile_options(-Wpedantic)
-    add_compile_options(-Wno-shift-negative-value)
-endif()
-
-if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT APPLE AND NOT CMAKE_C_SIMULATE_ID MATCHES "MSVC")
-    add_link_options("-Wl,-z,relro,-z,now,-z,defs")
-endif()
-
-if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_C_SIMULATE_ID MATCHES "MSVC")
-    # error: 'strdup' is deprecated: The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name: _strdup.
-    # "strdup" is standard since C23
-    add_definitions(-D _CRT_NONSTDC_NO_DEPRECATE)
-    # ignore "'fopen' is deprecated" and "'strncpy' is deprecated" warnings
-    add_definitions(-D _CRT_SECURE_NO_WARNINGS)
-endif()
-
 aux_source_directory(common COMMON_SRC)
 set(APRILTAG_SRCS apriltag.c apriltag_pose.c apriltag_quad_thresh.c)
 
 # Library
-file(GLOB TAG_FILES ${CMAKE_CURRENT_SOURCE_DIR}/tag*.c)
+file(GLOB TAG_FILES ${PROJECT_SOURCE_DIR}/tag*.c)
 add_library(${PROJECT_NAME} ${APRILTAG_SRCS} ${COMMON_SRC} ${TAG_FILES})
-set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if (MSVC)
-    add_compile_definitions("_CRT_SECURE_NO_WARNINGS")
+    # FindThreads will not find pthread.h with MSVC
+    # winmm is necessary for __imp_timeGetTime
+    find_library(PTHREAD_LIBRARIES NAMES pthreads)
+    target_link_libraries(${PROJECT_NAME} ${PTHREAD_LIBRARIES} winmm)
 else()
     find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
-endif()
-
-if (UNIX)
-    target_link_libraries(${PROJECT_NAME} PUBLIC m)
+    target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads m)
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 3 VERSION ${PROJECT_VERSION})
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
-set_property(TARGET ${PROJECT_NAME} PROPERTY C_STANDARD 99)
-
 
 include(GNUInstallDirs)
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -91,7 +64,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 
 # install header file hierarchy
-file(GLOB HEADER_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.h common/*.h)
+file(GLOB HEADER_FILES RELATIVE ${PROJECT_SOURCE_DIR} *.h common/*.h)
 list(REMOVE_ITEM HEADER_FILES apriltag_detect.docstring.h apriltag_py_type.docstring.h)
 
 foreach(HEADER ${HEADER_FILES})
@@ -128,7 +101,6 @@ write_basic_package_version_file("${version_config}" COMPATIBILITY SameMajorVers
 install(TARGETS ${PROJECT_NAME} EXPORT ${targets_export_name}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
 
 install(EXPORT ${targets_export_name}
@@ -142,78 +114,68 @@ export(TARGETS apriltag
     FILE ${generated_dir}/${targets_export_name}.cmake)
 
 
-# install pkgconfig file
-configure_file(${PROJECT_NAME}.pc.in ${PROJECT_NAME}.pc @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+# install pkgconfig related files
+FILE(READ apriltag.pc.in PKGC)
+STRING(REGEX REPLACE "^prefix=" "prefix=${CMAKE_INSTALL_PREFIX}" PKGC_CONF "${PKGC}" )
+FILE(WRITE ${PROJECT_BINARY_DIR}/apriltag.pc ${PKGC_CONF})
+install(FILES "${PROJECT_BINARY_DIR}/apriltag.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig/")
 
 
 # Python wrapper
-option(BUILD_PYTHON_WRAPPER "Builds Python wrapper" ON)
+include(CMakeDependentOption)
+cmake_dependent_option(BUILD_PYTHON_WRAPPER "Builds Python wrapper" ON BUILD_SHARED_LIBS OFF)
 
-find_package(Python3 QUIET COMPONENTS Development NumPy)
+if(BUILD_PYTHON_WRAPPER)
+    SET(Python_ADDITIONAL_VERSIONS 3)
+    find_package(PythonLibs)
+    execute_process(COMMAND which python3 OUTPUT_QUIET RESULT_VARIABLE Python3_NOT_FOUND)
+    execute_process(COMMAND python3 -c "import numpy" RESULT_VARIABLE Numpy_NOT_FOUND)
+endif(BUILD_PYTHON_WRAPPER)
 
-if(BUILD_PYTHON_WRAPPER AND Python3_Development_FOUND AND Python3_NumPy_FOUND)
+if (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BUILD_PYTHON_WRAPPER)
+    # TODO deal with both python2/3
+    execute_process(COMMAND python3 ${PROJECT_SOURCE_DIR}/python_build_flags.py OUTPUT_VARIABLE PY_OUT)
+    set(PY_VARS CFLAGS LDFLAGS LINKER EXT_SUFFIX)
+    cmake_parse_arguments(PY "" "${PY_VARS}" "" ${PY_OUT})
+    separate_arguments(PY_CFLAGS)
+    separate_arguments(PY_LDFLAGS)
 
-    include(CMake/vtkEncodeString.cmake)
-
-    foreach(X IN ITEMS detect py_type)
-        vtk_encode_string(
-            INPUT ${CMAKE_CURRENT_SOURCE_DIR}/apriltag_${X}.docstring
-            NAME apriltag_${X}_docstring
-        )
+    foreach(X detect py_type)
+    add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/apriltag_${X}.docstring.h
+        COMMAND < ${PROJECT_SOURCE_DIR}/apriltag_${X}.docstring sed 's/\"/\\\\\"/g\; s/^/\"/\; s/$$/\\\\n\"/\;' > apriltag_${X}.docstring.h
+        WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
     endforeach()
-    add_custom_target(apriltag_py_docstrings DEPENDS
-        ${PROJECT_BINARY_DIR}/apriltag_detect_docstring.h
-        ${PROJECT_BINARY_DIR}/apriltag_py_type_docstring.h
-    )
 
-    # set the SOABI manually since renaming the library via OUTPUT_NAME does not work on MSVC
-    set(apriltag_py_target "apriltag.${Python3_SOABI}")
-    Python3_add_library(${apriltag_py_target} MODULE ${CMAKE_CURRENT_SOURCE_DIR}/apriltag_pywrap.c)
-    add_dependencies(${apriltag_py_target} apriltag_py_docstrings)
-    target_link_libraries(${apriltag_py_target} PRIVATE apriltag Python3::Python Python3::NumPy)
-    target_include_directories(${apriltag_py_target} PRIVATE ${PROJECT_BINARY_DIR})
+    add_custom_command(OUTPUT apriltag_pywrap.o
+        COMMAND ${CMAKE_C_COMPILER} ${PY_CFLAGS} -I${PROJECT_BINARY_DIR} -c -o apriltag_pywrap.o ${PROJECT_SOURCE_DIR}/apriltag_pywrap.c
+        DEPENDS ${PROJECT_SOURCE_DIR}/apriltag_pywrap.c ${PROJECT_BINARY_DIR}/apriltag_detect.docstring.h ${PROJECT_BINARY_DIR}/apriltag_py_type.docstring.h)
+    add_custom_command(OUTPUT apriltag${PY_EXT_SUFFIX}
+        COMMAND ${PY_LINKER} ${PY_LDFLAGS} -Wl,-rpath,lib apriltag_pywrap.o $<TARGET_FILE:apriltag> -o apriltag${PY_EXT_SUFFIX}
+        DEPENDS ${PROJECT_NAME} apriltag_pywrap.o)
+    add_custom_target(apriltag_python ALL
+        DEPENDS apriltag${PY_EXT_SUFFIX})
 
-    set(PY_DEST ${CMAKE_INSTALL_PREFIX}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages/)
-    install(TARGETS ${apriltag_py_target} LIBRARY DESTINATION ${PY_DEST})
-elseif(BUILD_PYTHON_WRAPPER)
-    message(WARNING
-        "Python bindings requested (BUILD_PYTHON_WRAPPER=ON) but Development and NumPy not found. "
-        "Python bindings will not be built. Set BUILD_PYTHON_WRAPPER=OFF to silent this warnings."
-     )
-endif()
+execute_process(COMMAND python3 -m site --user-site OUTPUT_VARIABLE PY_DEST)
+string(STRIP ${PY_DEST} PY_DEST)
+install(FILES ${PROJECT_BINARY_DIR}/apriltag${PY_EXT_SUFFIX} DESTINATION ${PY_DEST})
+endif (NOT Python3_NOT_FOUND AND NOT Numpy_NOT_FOUND AND PYTHONLIBS_FOUND AND BUILD_PYTHON_WRAPPER)
+
 
 # Examples
-if (BUILD_EXAMPLES)
-    # apriltag_demo
-    add_executable(apriltag_demo example/apriltag_demo.c)
-    target_link_libraries(apriltag_demo ${PROJECT_NAME})
+# apriltag_demo
+add_executable(apriltag_demo example/apriltag_demo.c)
+target_link_libraries(apriltag_demo apriltag)
 
-    # opencv_demo
-    set(_OpenCV_REQUIRED_COMPONENTS core imgproc videoio highgui)
-    find_package(OpenCV COMPONENTS ${_OpenCV_REQUIRED_COMPONENTS} QUIET CONFIG)
-    if(OpenCV_FOUND)
-        enable_language(CXX)
-        # NB: contrib required for TickMeter in OpenCV 2.4. This is only required for 16.04 backwards compatibility and can be removed in the future.
-        #     If we add it to the find_package initially, the demo won't build for newer OpenCV versions
-        if(OpenCV_VERSION VERSION_LESS "3.0.0")
-            list(APPEND _OpenCV_REQUIRED_COMPONENTS contrib)
-            find_package(OpenCV COMPONENTS ${_OpenCV_REQUIRED_COMPONENTS} CONFIG)
-        endif()
+# opencv_demo
+find_package(OpenCV COMPONENTS core imgproc videoio highgui QUIET)
+if(OpenCV_FOUND)
+    add_executable(opencv_demo example/opencv_demo.cc)
+    target_link_libraries(opencv_demo apriltag ${OpenCV_LIBRARIES})
+    set_target_properties(opencv_demo PROPERTIES CXX_STANDARD 11)
+    install(TARGETS opencv_demo RUNTIME DESTINATION bin)
+else()
+    message(WARNING "OpenCV not found: Not building demo")
+endif(OpenCV_FOUND)
 
-        add_executable(opencv_demo example/opencv_demo.cc)
-        target_link_libraries(opencv_demo apriltag ${OpenCV_LIBRARIES})
-        set_target_properties(opencv_demo PROPERTIES CXX_STANDARD 11)
-        install(TARGETS opencv_demo RUNTIME DESTINATION bin)
-    else()
-        message(STATUS "OpenCV not found: Not building demo")
-    endif(OpenCV_FOUND)
-
-    # install example programs
-    install(TARGETS apriltag_demo RUNTIME DESTINATION bin)
-endif()
-
-if(BUILD_TESTING)
-    add_subdirectory(test)
-endif()
+# install example programs
+install(TARGETS apriltag_demo RUNTIME DESTINATION bin)
