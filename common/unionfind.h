@@ -27,7 +27,6 @@ either expressed or implied, of the Regents of The University of Michigan.
 
 #pragma once
 
-#include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -36,28 +35,35 @@ typedef struct unionfind unionfind_t;
 struct unionfind
 {
     uint32_t maxid;
+    struct ufrec *data;
+};
 
-    // Parent node for each. Initialized to 0xffffffff
-    uint32_t *parent;
+struct ufrec
+{
+    // the parent of this node. If a node's parent is its own index,
+    // then it is a root.
+    uint32_t parent;
 
-    // The size of the tree excluding the root
-    uint32_t *size;
+    // for the root of a connected component, the number of components
+    // connected to it. For intermediate values, it's not meaningful.
+    uint32_t size;
 };
 
 static inline unionfind_t *unionfind_create(uint32_t maxid)
 {
     unionfind_t *uf = (unionfind_t*) calloc(1, sizeof(unionfind_t));
     uf->maxid = maxid;
-    uf->parent = (uint32_t *) malloc((maxid+1) * sizeof(uint32_t) * 2);
-    memset(uf->parent, 0xff, (maxid+1) * sizeof(uint32_t));
-    uf->size = uf->parent + (maxid+1);
-    memset(uf->size, 0, (maxid+1) * sizeof(uint32_t));
+    uf->data = (struct ufrec*) malloc((maxid+1) * sizeof(struct ufrec));
+    for (int i = 0; i <= maxid; i++) {
+        uf->data[i].size = 1;
+        uf->data[i].parent = i;
+    }
     return uf;
 }
 
 static inline void unionfind_destroy(unionfind_t *uf)
 {
-    free(uf->parent);
+    free(uf->data);
     free(uf);
 }
 
@@ -65,14 +71,14 @@ static inline void unionfind_destroy(unionfind_t *uf)
 static inline uint32_t unionfind_get_representative(unionfind_t *uf, uint32_t id)
 {
     // base case: a node is its own parent
-    if (uf->parent[id] == id)
+    if (uf->data[id].parent == id)
         return id;
 
     // otherwise, recurse
-    uint32_t root = unionfind_get_representative(uf, uf->parent[id]);
+    uint32_t root = unionfind_get_representative(uf, uf->data[id].parent);
 
     // short circuit the path. [XXX This write prevents tail recursion]
-    uf->parent[id] = root;
+    uf->data[id].parent = root;
 
     return root;
 }
@@ -82,22 +88,17 @@ static inline uint32_t unionfind_get_representative(unionfind_t *uf, uint32_t id
 // version above.
 static inline uint32_t unionfind_get_representative(unionfind_t *uf, uint32_t id)
 {
-    uint32_t root = uf->parent[id];
-    // unititialized node, so set to self
-    if (root == 0xffffffff) {
-        uf->parent[id] = id;
-        return id;
-    }
+    uint32_t root = id;
 
     // chase down the root
-    while (uf->parent[root] != root) {
-        root = uf->parent[root];
+    while (uf->data[root].parent != root) {
+        root = uf->data[root].parent;
     }
 
     // go back and collapse the tree.
-    while (uf->parent[id] != root) {
-        uint32_t tmp = uf->parent[id];
-        uf->parent[id] = root;
+    while (uf->data[id].parent != root) {
+        uint32_t tmp = uf->data[id].parent;
+        uf->data[id].parent = root;
         id = tmp;
     }
 
@@ -107,7 +108,7 @@ static inline uint32_t unionfind_get_representative(unionfind_t *uf, uint32_t id
 static inline uint32_t unionfind_get_set_size(unionfind_t *uf, uint32_t id)
 {
     uint32_t repid = unionfind_get_representative(uf, id);
-    return uf->size[repid] + 1;
+    return uf->data[repid].size;
 }
 
 static inline uint32_t unionfind_connect(unionfind_t *uf, uint32_t aid, uint32_t bid)
@@ -125,8 +126,8 @@ static inline uint32_t unionfind_connect(unionfind_t *uf, uint32_t aid, uint32_t
     // for rank.  In my testing, it's often *faster* to use size than
     // rank, perhaps because the rank of the tree isn't that critical
     // if there are very few nodes in it.
-    uint32_t asize = uf->size[aroot] + 1;
-    uint32_t bsize = uf->size[broot] + 1;
+    uint32_t asize = uf->data[aroot].size;
+    uint32_t bsize = uf->data[broot].size;
 
     // optimization idea: We could shortcut some or all of the tree
     // that is grafted onto the other tree. Pro: those nodes were just
@@ -134,12 +135,12 @@ static inline uint32_t unionfind_connect(unionfind_t *uf, uint32_t aid, uint32_t
     // wasted effort -- the tree might be grafted onto another tree in
     // a moment!
     if (asize > bsize) {
-        uf->parent[broot] = aroot;
-        uf->size[aroot] += bsize;
+        uf->data[broot].parent = aroot;
+        uf->data[aroot].size += bsize;
         return aroot;
     } else {
-        uf->parent[aroot] = broot;
-        uf->size[broot] += asize;
+        uf->data[aroot].parent = broot;
+        uf->data[broot].size += asize;
         return broot;
     }
 }
