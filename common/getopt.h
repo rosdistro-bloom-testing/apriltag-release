@@ -38,7 +38,6 @@ typedef struct getopt getopt_t;
 
 getopt_t *getopt_create();
 void getopt_destroy(getopt_t *gopt);
-void getopt_option_destroy_void(void *goo);
 
 // Parse args. Returns 1 on success
 int getopt_parse(getopt_t *gopt, int argc, char *argv[], int showErrors);

@@ -25,6 +25,8 @@ of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the Regents of The University of Michigan.
 */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -41,7 +43,7 @@ int zstrcmp(const void * a_pp, const void * b_pp)
     return strcmp(a,b);
 }
 
-void zarray_vmap(zarray_t *za, void (*f)(void*))
+void zarray_vmap(zarray_t *za, void (*f)())
 {
     assert(za != NULL);
     assert(f != NULL);
