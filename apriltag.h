@@ -38,7 +38,7 @@ extern "C" {
 #include "common/zarray.h"
 #include "common/workerpool.h"
 #include "common/timeprofile.h"
-#include "common/pthreads_cross.h"
+#include <pthread.h>
 
 #define APRILTAG_TASKS_PER_THREAD_TARGET 10
 
@@ -144,14 +144,14 @@ struct apriltag_detector
     // (e.g. 0.8).
     float quad_sigma;
 
-    // When true, the edges of the each quad are adjusted to "snap
+    // When non-zero, the edges of the each quad are adjusted to "snap
     // to" strong gradients nearby. This is useful when decimation is
     // employed, as it can increase the quality of the initial quad
-    // estimate substantially. Generally recommended to be on (true).
+    // estimate substantially. Generally recommended to be on (1).
     //
     // Very computationally inexpensive. Option is ignored if
     // quad_decimate = 1.
-    bool refine_edges;
+    int refine_edges;
 
     // How much sharpening should be done to decoded images? This
     // can help decode small tags but may or may not help in odd
@@ -160,10 +160,10 @@ struct apriltag_detector
     // The default value is 0.25.
     double decode_sharpening;
 
-    // When true, write a variety of debugging images to the
+    // When non-zero, write a variety of debugging images to the
     // current working directory at various stages through the
     // detection process. (Somewhat slow).
-    bool debug;
+    int debug;
 
     struct apriltag_quad_thresh_params qtp;
 
@@ -269,7 +269,7 @@ void apriltag_detections_destroy(zarray_t *detections);
 
 // Renders the apriltag.
 // Caller is responsible for calling image_u8_destroy on the image
-image_u8_t *apriltag_to_image(apriltag_family_t *fam, uint32_t idx);
+image_u8_t *apriltag_to_image(apriltag_family_t *fam, int idx);
 
 #ifdef __cplusplus
 }

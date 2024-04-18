@@ -259,7 +259,7 @@ void zhash_iterator_remove(zhash_iterator_t *zit);
  * for the key, which the caller should not modify, as the hash table will not be
  * re-indexed. The function may be NULL, in which case no action is taken.
  */
-void zhash_map_keys(zhash_t *zh, void (*f)(void *));
+void zhash_map_keys(zhash_t *zh, void (*f)());
 
 /**
  * Calls the supplied function with a pointer to every value in the hash table in
@@ -267,7 +267,7 @@ void zhash_map_keys(zhash_t *zh, void (*f)(void *));
  * for the value, which the caller may safely modify. The function may be NULL,
  * in which case no action is taken.
  */
-void zhash_map_values(zhash_t *zh, void (*f)(void *));
+void zhash_map_values(zhash_t *zh, void (*f)());
 
 /**
  * Calls the supplied function with a copy of every key in the hash table in
@@ -280,7 +280,7 @@ void zhash_map_values(zhash_t *zh, void (*f)(void *));
  * Use with non-pointer keys (i.e. integer, double, etc.) will likely cause a
  * segmentation fault.
  */
-void zhash_vmap_keys(zhash_t *vh, void (*f)(void *));
+void zhash_vmap_keys(zhash_t *vh, void (*f)());
 
 /**
  * Calls the supplied function with a copy of every value in the hash table in
@@ -293,7 +293,7 @@ void zhash_vmap_keys(zhash_t *vh, void (*f)(void *));
  * Use with non-pointer values (i.e. integer, double, etc.) will likely cause a
  * segmentation fault.
  */
-void zhash_vmap_values(zhash_t *vh, void (*f)(void *));
+void zhash_vmap_values(zhash_t *vh, void (*f)());
 
 /**
  * Returns an array which contains copies of all of the hash table's keys, in no
