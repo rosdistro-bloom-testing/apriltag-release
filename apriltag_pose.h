@@ -17,14 +17,9 @@ typedef struct {
     double cy; // In pixels.
 } apriltag_detection_info_t;
 
-/**
- * This struct holds the transformation from the camera optical frame to
- * the April tag frame. The pose refers to the position of the tag within
- * the camera frame.
- */
 typedef struct {
-    matd_t* R; // Rotation matrix 3x3 of doubles.
-    matd_t* t; // Translation matrix 3x1 of doubles.
+    matd_t* R;
+    matd_t* t;
 } apriltag_pose_t;
 
 /**
