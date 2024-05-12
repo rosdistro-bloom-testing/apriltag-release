@@ -34,8 +34,12 @@ either expressed or implied, of the Regents of The University of Michigan.
 #include <stdint.h>
 #include <inttypes.h>
 #include <ctype.h>
-#include <unistd.h>
 #include <math.h>
+#include <errno.h>
+
+#ifdef __linux__
+    #include <unistd.h>
+#endif
 
 #include "apriltag.h"
 #include "tag36h11.h"
@@ -49,13 +53,10 @@ either expressed or implied, of the Regents of The University of Michigan.
 
 #include "common/getopt.h"
 #include "common/image_u8.h"
-#include "common/image_u8x4.h"
 #include "common/pjpeg.h"
 #include "common/zarray.h"
 
-// Invoke:
-//
-// tagtest [options] input.pnm
+#define  HAMM_HIST_MAX 10
 
 int main(int argc, char *argv[])
 {
@@ -105,6 +106,16 @@ int main(int argc, char *argv[])
 
     apriltag_detector_t *td = apriltag_detector_create();
     apriltag_detector_add_family_bits(td, tf, getopt_get_int(getopt, "hamming"));
+
+    switch(errno){
+        case EINVAL:
+            printf("\"hamming\" parameter is out-of-range.\n");
+            exit(-1);
+        case ENOMEM:
+            printf("Unable to add family to detector due to insufficient memory to allocate the tag-family decoder. Try reducing \"hamming\" from %d or choose an alternative tag family.\n", getopt_get_int(getopt, "hamming"));
+            exit(-1);
+    }
+
     td->quad_decimate = getopt_get_double(getopt, "decimate");
     td->quad_sigma = getopt_get_double(getopt, "blur");
     td->nthreads = getopt_get_int(getopt, "threads");
@@ -115,13 +126,11 @@ int main(int argc, char *argv[])
 
     int maxiters = getopt_get_int(getopt, "iters");
 
-    const int hamm_hist_max = 10;
-
     for (int iter = 0; iter < maxiters; iter++) {
 
         int total_quads = 0;
-        int total_hamm_hist[hamm_hist_max];
-        memset(total_hamm_hist, 0, sizeof(total_hamm_hist));
+        int total_hamm_hist[HAMM_HIST_MAX];
+        memset(total_hamm_hist, 0, sizeof(int)*HAMM_HIST_MAX);
         double total_time = 0;
 
         if (maxiters > 1)
@@ -129,7 +138,7 @@ int main(int argc, char *argv[])
 
         for (int input = 0; input < zarray_size(inputs); input++) {
 
-            int hamm_hist[hamm_hist_max];
+            int hamm_hist[HAMM_HIST_MAX];
             memset(hamm_hist, 0, sizeof(hamm_hist));
 
             char *path;
@@ -147,7 +156,7 @@ int main(int argc, char *argv[])
                 int err = 0;
                 pjpeg_t *pjpeg = pjpeg_create_from_file(path, 0, &err);
                 if (pjpeg == NULL) {
-                    printf("pjpeg error %d\n", err);
+                    printf("pjpeg failed to load: %s, error %d\n", path, err);
                     continue;
                 }
 
@@ -190,7 +199,14 @@ int main(int argc, char *argv[])
                 continue;
             }
 
+            printf("image: %s %dx%d\n", path, im->width, im->height);
+
             zarray_t *detections = apriltag_detector_detect(td, im);
+
+            if (errno == EAGAIN) {
+                printf("Unable to create the %d threads requested.\n",td->nthreads);
+                exit(-1);
+            }
 
             for (int i = 0; i < zarray_size(detections); i++) {
                 apriltag_detection_t *det;
@@ -215,7 +231,7 @@ int main(int argc, char *argv[])
             if (!quiet)
                 printf("hamm ");
 
-            for (int i = 0; i < hamm_hist_max; i++)
+            for (int i = 0; i < HAMM_HIST_MAX; i++)
                 printf("%5d ", hamm_hist[i]);
 
             double t =  timeprofile_total_utime(td->tp) / 1.0E3;
@@ -233,7 +249,7 @@ int main(int argc, char *argv[])
 
         printf("hamm ");
 
-        for (int i = 0; i < hamm_hist_max; i++)
+        for (int i = 0; i < HAMM_HIST_MAX; i++)
             printf("%5d ", total_hamm_hist[i]);
         printf("%12.3f ", total_time);
         printf("%5d", total_quads);
