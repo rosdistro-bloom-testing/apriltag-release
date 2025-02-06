@@ -253,4 +253,5 @@ tracks:
     ros_distro: rolling
     vcs_type: git
     vcs_uri: https://github.com/AprilRobotics/apriltag.git
-    version: :{auto}
+    version: 3.4.2
+    version_saved: :{auto}
